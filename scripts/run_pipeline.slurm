@@ -3,8 +3,8 @@
 #SBATCH --output=logs/pipeline_%j.out
 #SBATCH --error=logs/pipeline_%j.err
 #SBATCH --time=04:00:00
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=64G
+#SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=2G
 
 echo "Running data pipeline on node: $HOSTNAME"
 echo "CPUs allocated: $SLURM_CPUS_PER_TASK"
@@ -28,12 +28,12 @@ pip install -r requirements.txt
 # Extract zip files (if they haven't been extracted yet)
 # We assume they were downloaded by setup_data.sh to data/raw/
 echo "Extracting datasets (this might take a while for Large)..."
-unzip -q -o data/raw/mind/MINDlarge_train.zip -d data/raw/mind/train/
-unzip -q -o data/raw/mind/MINDlarge_dev.zip -d data/raw/mind/dev/
-unzip -q -o data/raw/mind/MINDlarge_test.zip -d data/raw/mind/test/
-unzip -q -o data/raw/ebnerd/ebnerd_large.zip -d data/raw/ebnerd/large/
-unzip -q -o data/raw/ebnerd/Ekstra_Bladet_word2vec.zip -d data/raw/ebnerd/word2vec/
-unzip -q -o data/raw/ebnerd/google_bert_base_multilingual_cased.zip -d data/raw/ebnerd/bert/
+unzip -q -o data/raw/mind/MINDlarge_train.zip -d data/raw/mind/train/ || true
+unzip -q -o data/raw/mind/MINDlarge_dev.zip -d data/raw/mind/dev/ || true
+unzip -q -o data/raw/mind/MINDlarge_test.zip -d data/raw/mind/test/ || true
+unzip -q -o data/raw/ebnerd/ebnerd_large.zip -d data/raw/ebnerd/large/ || true
+unzip -q -o data/raw/ebnerd/Ekstra_Bladet_word2vec.zip -d data/raw/ebnerd/word2vec/ || true
+unzip -q -o data/raw/ebnerd/google_bert_base_multilingual_cased.zip -d data/raw/ebnerd/bert/ || true
 
 # Run the data processing pipeline
 echo "Executing build_pipeline.py..."

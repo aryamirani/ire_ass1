@@ -13,6 +13,7 @@ ssh ada "mkdir -p $DEST_DIR"
 # Rsync the codebase, excluding heavy/local directories
 rsync -avz --progress \
     --exclude "venv/" \
+    --exclude "data/raw/" \
     --exclude "data/processed/" \
     --exclude "__pycache__/" \
     --exclude ".git/" \

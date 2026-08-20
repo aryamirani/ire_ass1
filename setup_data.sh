@@ -16,7 +16,7 @@ download_and_extract() {
     FILE_NAME=$(basename "$URL")
     
     echo "Downloading $FILE_NAME..."
-    curl -L -o "$DEST_DIR/$FILE_NAME" "$URL"
+    curl -L -C - -o "$DEST_DIR/$FILE_NAME" "$URL"
     
     # We won't extract automatically to save space and let the python pipeline handle it
     # But if you want to extract, you can uncomment below

@@ -2,7 +2,7 @@
 #SBATCH --job-name=download_ire_data
 #SBATCH --output=logs/download_%j.out
 #SBATCH --error=logs/download_%j.err
-#SBATCH --time=02:00:00
+#SBATCH --time=24:00:00
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=8G
 
