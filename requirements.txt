@@ -1,0 +1,8 @@
+polars
+pandas
+scikit-learn
+rank_bm25
+faiss-cpu
+tqdm
+jupyter
+numpy
