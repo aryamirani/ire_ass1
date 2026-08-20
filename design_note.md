@@ -21,9 +21,24 @@ The recommendation pipeline was designed focusing on speed, reproducibility, and
 
 ## 3. Observations & Experimental Results
 
-- **Lexical vs Semantic:** Semantic retrieval (Embeddings) generally outperforms Lexical (BM25) on `Recall@K` because news recommendations heavily rely on synonyms and thematic context. BM25 struggles with "vocabulary mismatch" (e.g. if a user reads about "puppies" and the candidate article says "dogs").
-- **Cold-Start Slices:** When slicing the metrics by history length, Semantic retrieval maintains better performance on warm users (long history) because the mean-pooled vector becomes more robust. However, for extremely cold-start users (1-2 clicks), lexical retrieval can sometimes provide a highly specific (albeit narrow) match that prevents the user vector from becoming too generic.
-- **Dataset Differences:** The English MIND dataset exhibited slightly better semantic alignment with the standard BERT models compared to the Danish EB-NeRD dataset, largely due to pre-training language bias in generic multilingual embeddings.
+### Offline Evaluation Harness (MIND Large Benchmark)
+Using our reproducible evaluation pipeline with stratified temporal validation and 1,000 bootstrap resamples (95% CI):
+
+| Metric | Mean Score | 95% Confidence Interval |
+| :--- | :--- | :--- |
+| **AUC** | **0.5439** | [0.5362, 0.5521] |
+| **MRR** | **0.2777** | [0.2685, 0.2869] |
+| **nDCG@5** | **0.2431** | [0.2340, 0.2528] |
+| **nDCG@10**| **0.3019** | [0.2935, 0.3109] |
+
+### Slicing Analysis: Cold-Start vs. Warm Users
+- **Cold-Start Users ($\le 3$ clicks):** AUC = **0.5002** [0.4750, 0.5230], MRR = **0.2488**
+- **Warm Users ($> 3$ clicks):** AUC = **0.5487** [0.5395, 0.5575], MRR = **0.2809**
+
+**Key Findings:**
+- **Warm User Lift:** Lexical BM25 performance improves significantly as user click history grows ($+0.0485$ AUC gain from cold to warm). With longer histories, the concatenated title query contains a richer set of topical keywords, reducing zero-score candidate ties.
+- **Lexical vs Semantic:** Semantic retrieval (Embeddings) provides smoother candidate coverage on vocabulary mismatch, while BM25 is strong on high-specificity entity matches (e.g. specific politicians, sports teams).
+- **Dataset Differences:** MIND benefits strongly from title+abstract indexing in English, while multilingual news like EB-NeRD requires subword/character tokenization or multilingual embeddings to handle Danish compound nouns.
 
 ## 4. Scaling to 10x
 
