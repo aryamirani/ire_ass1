@@ -9,9 +9,6 @@ import os
 import sys
 
 class FastBM25:
-    """
-    High-performance in-memory BM25 scorer optimized for candidate ranking.
-    """
     def __init__(self, k1=1.5, b=0.75):
         self.k1 = k1
         self.b = b
@@ -36,7 +33,6 @@ class FastBM25:
                 
         self.avgdl = total_len / self.N if self.N > 0 else 1.0
         
-        # Precompute IDF
         for t, df in self.doc_freqs.items():
             self.idf[t] = math.log((self.N - df + 0.5) / (df + 0.5) + 1.0)
 
@@ -69,83 +65,112 @@ class FastBM25:
             
         return scores
 
-def generate_mind_predictions(raw_test_dir: Path, articles_path: Path, output_zip: Path):
-    print(f"Generating MIND predictions from {raw_test_dir}...")
-    test_beh_file = raw_test_dir / "behaviors.tsv"
-    
-    if not test_beh_file.exists():
-        print(f"Error: {test_beh_file} not found.")
+def generate_ebnerd_predictions(eb_test_path: Path, articles_path: Path, hist_path: Path, output_zip: Path):
+    """
+    Generates official predictions.txt for EB-NeRD Codabench (Competition 2469).
+    """
+    print(f"Generating EB-NeRD predictions from {eb_test_path}...")
+    if not eb_test_path.exists() or not articles_path.exists():
+        print(f"Error: EB-NeRD test files ({eb_test_path}) or articles ({articles_path}) not found.")
         return
 
-    # 1. Load articles
-    print("Loading articles for FastBM25...")
+    print("1. Loading EB-NeRD articles for BM25...")
     articles_df = pl.read_parquet(articles_path)
     article_dict = {}
     
-    for row in articles_df.select(["article_id", "title", "abstract"]).iter_rows():
-        art_id, title, abstract = row[0], row[1] or "", row[2] or ""
-        tokens = (title + " " + abstract).lower().split()
+    # Determine title and subtitle/abstract columns
+    sub_col = "abstract" if "abstract" in articles_df.columns else "subtitle" if "subtitle" in articles_df.columns else None
+    
+    for row in articles_df.select(["article_id", "title", sub_col] if sub_col else ["article_id", "title"]).iter_rows():
+        art_id = str(row[0])
+        title = row[1] or ""
+        sub = row[2] or "" if sub_col else ""
+        tokens = (title + " " + sub).lower().split()
         article_dict[art_id] = tokens
         
-    print(f"Fitting FastBM25 on {len(article_dict)} articles...")
+    print(f"Fitting FastBM25 on {len(article_dict)} EB-NeRD articles...")
     bm25 = FastBM25()
     bm25.fit(article_dict)
     
-    pred_txt_path = Path("prediction.txt")
-    print(f"Scoring test impressions and writing to {pred_txt_path}...")
+    # Load user history lookup
+    print("2. Loading user history mapping...")
+    user_history_map = {}
+    if hist_path.exists():
+        hist_df = pl.read_parquet(hist_path)
+        hist_col = "article_id_fixed" if "article_id_fixed" in hist_df.columns else "history" if "history" in hist_df.columns else hist_df.columns[1]
+        for row in hist_df.select(["user_id", hist_col]).iter_rows():
+            uid = str(row[0])
+            raw_hist = row[1]
+            if isinstance(raw_hist, list) or isinstance(raw_hist, np.ndarray):
+                h_list = [str(x) for x in raw_hist]
+            elif isinstance(raw_hist, str):
+                h_list = [str(x) for x in raw_hist.split()]
+            else:
+                h_list = []
+            user_history_map[uid] = h_list
+            
+    print(f"User history loaded for {len(user_history_map)} users.")
+
+    pred_txt_path = Path("predictions.txt")
+    print(f"3. Scoring test impressions to {pred_txt_path}...")
+    
+    test_df = pl.read_parquet(eb_test_path)
+    inview_col = "article_ids_inview" if "article_ids_inview" in test_df.columns else "impressions"
     
     count = 0
-    with open(test_beh_file, "r", encoding="utf-8") as f_in, open(pred_txt_path, "w", encoding="utf-8") as f_out:
-        for line in f_in:
-            parts = line.strip().split("\t")
-            if len(parts) < 5:
-                continue
-            impr_id = parts[0]
-            history_str = parts[3]
-            impr_str = parts[4]
+    with open(pred_txt_path, "w", encoding="utf-8") as f_out:
+        for row in test_df.select(["impression_id", "user_id", inview_col]).iter_rows():
+            impr_id = row[0]
+            uid = str(row[1]) if row[1] is not None else ""
+            raw_cands = row[2]
             
-            history_ids = history_str.split() if history_str else []
-            candidate_ids = impr_str.split() if impr_str else []
-            
-            if not candidate_ids:
+            if isinstance(raw_cands, list) or isinstance(raw_cands, np.ndarray):
+                cand_ids = [str(x) for x in raw_cands]
+            elif isinstance(raw_cands, str):
+                cand_ids = [str(x) for x in raw_cands.split()]
+            else:
                 continue
                 
-            # Construct user query tokens from history
+            if not cand_ids:
+                continue
+                
+            history_ids = user_history_map.get(uid, [])
             query_tokens = []
             for hid in history_ids[-10:]:
                 if hid in article_dict:
                     query_tokens.extend(article_dict[hid])
                     
-            scores = bm25.score_candidates(query_tokens, candidate_ids)
+            scores = bm25.score_candidates(query_tokens, cand_ids)
             scores_arr = np.array(scores, dtype=np.float32)
             
-            # Rank descending: highest score gets rank 1
             ranks = rankdata(-scores_arr, method='ordinal').astype(int).tolist()
             rank_str = ",".join(map(str, ranks))
             f_out.write(f"{impr_id} [{rank_str}]\n")
             
             count += 1
             if count % 250000 == 0:
-                print(f"Processed {count} impressions...")
+                print(f"Processed {count} EB-NeRD impressions...")
                 
     print(f"Finished {count} impressions. Zipping submission to {output_zip}...")
     with zipfile.ZipFile(output_zip, "w", compression=zipfile.ZIP_DEFLATED) as zipf:
-        zipf.write(pred_txt_path, arcname="prediction.txt")
+        zipf.write(pred_txt_path, arcname="predictions.txt")
         
     if pred_txt_path.exists():
         pred_txt_path.unlink()
         
-    print(f"Successfully generated {output_zip} (ready for Codabench upload)!")
+    print(f"Successfully generated {output_zip} (ready for Codabench EB-NeRD upload)!")
 
 def main():
-    raw_mind_test = Path("data/raw/mind/test/MINDlarge_test")
-    articles_path = Path("data/processed/mind/articles.parquet")
-    out_zip = Path("mind_submission.zip")
+    # Only EB-NeRD
+    eb_test_path = Path("data/raw/ebnerd/large/validation/behaviors.parquet")
+    eb_articles_path = Path("data/processed/ebnerd/articles.parquet")
+    eb_hist_path = Path("data/raw/ebnerd/large/validation/history.parquet")
+    eb_out_zip = Path("ebnerd_submission.zip")
     
-    if raw_mind_test.exists() and articles_path.exists():
-        generate_mind_predictions(raw_mind_test, articles_path, out_zip)
+    if eb_test_path.exists() and eb_articles_path.exists():
+        generate_ebnerd_predictions(eb_test_path, eb_articles_path, eb_hist_path, eb_out_zip)
     else:
-        print("MIND test files or articles.parquet not found yet.")
+        print("EB-NeRD processed files not ready yet.")
 
 if __name__ == "__main__":
     main()
