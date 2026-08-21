@@ -31,9 +31,19 @@ Using our reproducible evaluation pipeline with stratified temporal validation a
 | **nDCG@5** | **0.2431** | [0.2340, 0.2528] |
 | **nDCG@10**| **0.3019** | [0.2935, 0.3109] |
 
-### Slicing Analysis: Cold-Start vs. Warm Users
+### Slicing Analysis (MIND): Cold-Start vs. Warm Users
 - **Cold-Start Users ($\le 3$ clicks):** AUC = **0.5002** [0.4750, 0.5230], MRR = **0.2488**
 - **Warm Users ($> 3$ clicks):** AUC = **0.5487** [0.5395, 0.5575], MRR = **0.2809**
+
+### Offline Evaluation Harness (EB-NeRD Large Benchmark)
+Evaluating lexical candidate generation over Danish news articles (125,541 articles, 10.8M interactions):
+
+| Metric | Mean Score | 95% Confidence Interval |
+| :--- | :--- | :--- |
+| **AUC** | **0.4878** | [0.4786, 0.4972] |
+| **MRR** | **0.3176** | [0.3095, 0.3258] |
+| **nDCG@5** | **0.3489** | [0.3399, 0.3585] |
+| **nDCG@10**| **0.4360** | [0.4283, 0.4437] |
 
 **Key Findings:**
 - **Warm User Lift:** Lexical BM25 performance improves significantly as user click history grows ($+0.0485$ AUC gain from cold to warm). With longer histories, the concatenated title query contains a richer set of topical keywords, reducing zero-score candidate ties.
