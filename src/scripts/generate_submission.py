@@ -67,7 +67,7 @@ class FastBM25:
 
 def generate_ebnerd_predictions(eb_test_path: Path, articles_path: Path, hist_path: Path, output_zip: Path):
     """
-    Generates official predictions.txt for EB-NeRD Codabench (Competition 2469).
+    Generates official predictions.txt for EB-NeRD Codabench (Competition 2469, Phase 2).
     """
     print(f"Generating EB-NeRD predictions from {eb_test_path}...")
     if not eb_test_path.exists() or not articles_path.exists():
@@ -78,7 +78,6 @@ def generate_ebnerd_predictions(eb_test_path: Path, articles_path: Path, hist_pa
     articles_df = pl.read_parquet(articles_path)
     article_dict = {}
     
-    # Determine title and subtitle/abstract columns
     sub_col = "abstract" if "abstract" in articles_df.columns else "subtitle" if "subtitle" in articles_df.columns else None
     
     for row in articles_df.select(["article_id", "title", sub_col] if sub_col else ["article_id", "title"]).iter_rows():
@@ -92,7 +91,6 @@ def generate_ebnerd_predictions(eb_test_path: Path, articles_path: Path, hist_pa
     bm25 = FastBM25()
     bm25.fit(article_dict)
     
-    # Load user history lookup
     print("2. Loading user history mapping...")
     user_history_map = {}
     if hist_path.exists():
@@ -161,16 +159,41 @@ def generate_ebnerd_predictions(eb_test_path: Path, articles_path: Path, hist_pa
     print(f"Successfully generated {output_zip} (ready for Codabench EB-NeRD upload)!")
 
 def main():
-    # Only EB-NeRD
-    eb_test_path = Path("data/raw/ebnerd/large/validation/behaviors.parquet")
     eb_articles_path = Path("data/processed/ebnerd/articles.parquet")
-    eb_hist_path = Path("data/raw/ebnerd/large/validation/history.parquet")
     eb_out_zip = Path("ebnerd_submission.zip")
     
-    if eb_test_path.exists() and eb_articles_path.exists():
+    # Check Official Test Set first (impression ID 6451339)
+    test_paths = [
+        Path("data/raw/ebnerd/test/ebnerd_testset/test/behaviors.parquet"),
+        Path("data/raw/ebnerd/test/test/behaviors.parquet"),
+        Path("data/raw/ebnerd/test/behaviors.parquet"),
+        Path("data/raw/ebnerd/large/validation/behaviors.parquet"),
+    ]
+    hist_paths = [
+        Path("data/raw/ebnerd/test/ebnerd_testset/test/history.parquet"),
+        Path("data/raw/ebnerd/test/test/history.parquet"),
+        Path("data/raw/ebnerd/test/history.parquet"),
+        Path("data/raw/ebnerd/large/validation/history.parquet"),
+    ]
+    
+    eb_test_path = None
+    eb_hist_path = None
+    for p in test_paths:
+        if p.exists():
+            eb_test_path = p
+            break
+            
+    for p in hist_paths:
+        if p.exists():
+            eb_hist_path = p
+            break
+            
+    if eb_test_path and eb_hist_path and eb_articles_path.exists():
+        print(f"Using test set: {eb_test_path}")
+        print(f"Using history file: {eb_hist_path}")
         generate_ebnerd_predictions(eb_test_path, eb_articles_path, eb_hist_path, eb_out_zip)
     else:
-        print("EB-NeRD processed files not ready yet.")
+        print(f"Required test files not found. (eb_test_path={eb_test_path}, eb_hist_path={eb_hist_path})")
 
 if __name__ == "__main__":
     main()

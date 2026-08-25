@@ -5,11 +5,15 @@ __pycache__/
 venv/
 .env
 
-# Data
+# Data and model artifacts
 data/
 *.zip
 *.pt
 *.ckpt
+*.parquet
+*.log
+logs/
+.pytest_cache/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -22,3 +26,4 @@ data/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
