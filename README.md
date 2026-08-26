@@ -5,11 +5,13 @@ This repository contains the complete reproducible pipeline for Lexical and Sema
 ## Directory Structure
 - `data/raw/`: Place the raw downloaded zip files here.
 - `data/processed/`: Where the feature store (Parquet files) is generated.
+- `notebooks/`: Exploratory analysis and baseline walkthrough notebooks (`ebnerd_analysis.ipynb`, `mind_analysis.ipynb`).
 - `src/data/`: Data parsing and temporal splitting.
 - `src/models/`: Implementation of `BM25CandidateGenerator` and `SemanticCandidateGenerator`.
 - `src/evaluation/`: Implementation of evaluation metrics and bootstrapping.
 - `src/scripts/`: Codabench submission generator.
 - `tests/`: Automated tests (e.g. anti-gaming future-click leakage check).
+
 
 ## Quickstart (One-Command Reproduce)
 
